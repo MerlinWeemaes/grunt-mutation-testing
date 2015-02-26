@@ -80,14 +80,15 @@ function truncateReplacement(opts, replacementArg) {
     return replacement;
 }
 
-function createMutationLogMessage(opts, srcFilePath, mutation, src) {
+function createMutationLogMessage(opts, srcFilePath, mutation, src, testSurvived) {
+    var result = testSurvived ? "KILLED" : "SURVIVED";
     var srcFileName = opts.basePath ? srcFilePath.substr(srcFilePath.indexOf(opts.basePath)) : srcFilePath;
     var currentMutationPosition = srcFileName + ':' + mutation.line + ':' + (mutation.col + 1);
     var mutatedCode = src.substr(mutation.begin, mutation.end - mutation.begin);
     return currentMutationPosition + (
             mutation.replacement ?
-            ' ' + truncateReplacement(opts, mutatedCode) + ' can be replaced with: ' + truncateReplacement(opts, mutation.replacement) :
-            ' ' + truncateReplacement(opts, mutatedCode) + ' can be removed');
+            ' Replaced ' + truncateReplacement(opts, mutatedCode) + ' with ' + truncateReplacement(opts, mutation.replacement) + ' -> ' + result :
+            ' Removed ' + truncateReplacement(opts, mutatedCode) + ' -> ' + result );
 }
 
 function createNotTestedBecauseInsideUntestedMutationLogMessage(opts, srcFilePath, mutation) {
@@ -134,9 +135,9 @@ function mutationTestFile(srcFilename, runTests, logMutation, log, opts) {
                 return;
             }
             fs.writeFileSync(srcFilename, mutate.applyMutation(src, mutation));
-            return runTests().then(function (testSuccess) {
-                if (testSuccess) {
-                    logMutation(createMutationLogMessage(opts, srcFilename, mutation, src));
+            return runTests().then(function (testSurvived) {
+                logMutation(createMutationLogMessage(opts, srcFilename, mutation, src, testSurvived));
+                if (testSurvived) {
                     stats.untested += 1;
                     notFailingMutations.push(mutation.mutationId);
                 }
